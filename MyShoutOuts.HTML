@@ -1,108 +1,71 @@
-<html>
+function shoutout() {
+    // Parse URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const user = urlParams.get('user');
+    const image = urlParams.get('image');
+    const video = urlParams.get('video');
+    const time = urlParams.get('time');
+    document.getElementById('imagebox2').innerHTML = "<img src='" + image + "' width='100%'/>";
+    
+    // Always use the API to get the video source URL
+    getVideoSourceFromAPI(video, function(videoSrc) {
+        const videoElement = document.getElementById('videoplayer');
+        videoElement.style.visibility = "hidden";
+        videoElement.src = videoSrc;
 
-<head>
-    <title>Streamer.bot Shout out player</title>
+        // Wait for the video to be ready before playing
+        videoElement.addEventListener('canplaythrough', function handler() {
+            videoElement.removeEventListener('canplaythrough', handler);
+            showVideo();
+        });
 
-    <script>
-        //Thanks for the help from Nate1280,  WhipStickGoStop and itsBarrex!
-        //Updated to handle twitch changing the clip location for newer videos.
-        //Fixes also in place to improve stability.
+        videoElement.load();
+    });
+}
 
-        function showVideo() {
-            const videoElement = document.getElementById('videoplayer');
-            videoElement.style.visibility = "visible";
-            videoElement.play();
+// Function to get video source URL from Twitch API
+function getVideoSourceFromAPI(video, callback) {
+    // Extract clip ID from the video URL
+    const match = video.match(/clip=([^&]+)/);
+    const clipId = match ? match[1] : null;
 
+    if (!clipId) {
+        console.error("Clip ID not found.");
+        return;
+    }
+
+    const url = "https://gql.twitch.tv/gql";
+    const query = {
+        operationName: "VideoAccessToken_Clip",
+        variables: {
+            slug: clipId
+        },
+        extensions: {
+            persistedQuery: {
+                version: 1,
+                sha256Hash: "36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11"
+            }
         }
-        function shoutout() {
-            let firstrun = true;
+    };
 
-            // parse url params
-            const urlParams = new URLSearchParams(window.location.search);
-            const user = urlParams.get('user');
-            const image = urlParams.get('image');
-            const video = urlParams.get('video');
-            const time = urlParams.get('time');
-            document.getElementById('imagebox2').innerHTML = "<img src='" + image + "' width='100%'/>";
-            const thumbnailUrl = urlParams.get('thumbnail_url');
-            videoSrc = thumbnailUrl.replace(/(.*)-preview-.*/, '$1.mp4');
-            // generate mp4 url
-            //Check to see if the URL is a new or old format
-
-            if (thumbnailUrl.indexOf("-preview-") == -1) {
-                // Need to get url via gql - how I wish Twitch just let us to get access to this via URL. Ideally I'd do this via streamer bot but want to keep the implementation as simple as possible.      
-                // build gql request
-                // generate clip Id from embed url passed in
-                const match = video.match(/clip=([^"]+)/);
-                const clipId = match ? match[1] : null;
-                // const clipId = video.match(/clip=([^"]+)/);
-
-                const url = "https://gql.twitch.tv/gql";
-                const query = {
-                    operationName: "VideoAccessToken_Clip",
-                    variables: {
-                        slug: clipId
-                    },
-                    extensions: {
-                        persistedQuery: {
-                            version: 1,
-                            sha256Hash: "36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11"
-                        }
-                    }
-                };
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", url, false); // I know this is horrible to make the request synchronous, but here we should be ok
-                xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8"); // not what you'd expect, but it's what is used.
-                xhr.setRequestHeader("Client-ID", "kimne78kx3ncx6brgo4mv6wki5h1ko");
-                xhr.send(JSON.stringify(query));
-                if (xhr.status === 200) {
-                    console.log(JSON.parse(xhr.responseText));
-                } else {
-                    console.error("Request failed with status: " + xhr.status);
-                    return null;
-                }
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true); // Use asynchronous request
+    xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
+    xhr.setRequestHeader("Client-ID", "kimne78kx3ncx6brgo4mv6wki5h1ko");
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 200) {
                 const clipInfo = JSON.parse(xhr.responseText);
                 const clipData = clipInfo.data;
                 const clipSource = clipData.clip.videoQualities[0].sourceURL;
                 const clipSig = clipData.clip.playbackAccessToken.signature;
-                const clipToken = clipData.clip.playbackAccessToken.value
-
-                videoSrc = clipSource + "?sig=" + clipSig + "&token=" + clipToken;
-                console.log(videoSrc);
+                const clipToken = clipData.clip.playbackAccessToken.value;
+                const videoSrc = clipSource + "?sig=" + clipSig + "&token=" + encodeURIComponent(clipToken);
+                callback(videoSrc);
+            } else {
+                console.error("Request failed with status: " + xhr.status);
             }
-            //new format generation
-            // apply mp4 to video element so it's ready to play
-            const videoElement = document.getElementById('videoplayer');
-            videoElement.style.visibility = "hidden";
-            videoElement.src = videoSrc;
-
-            // Add event listener for 'canplaythrough'
-            videoElement.addEventListener('canplaythrough', function handler() {
-                videoElement.removeEventListener('canplaythrough', handler);
-                showVideo();
-            });
-
-            videoElement.load();
         }
-        function cleanup() {
-            document.getElementById('videocontainer').innerHTML = "";
-            document.getElementById('imagebox2').innerHTML = "";
-        }
-    </script>
-
-
-</head>
-
-<body onload="shoutout();">
-
-
-    <div id="videocontainer" style="position:absolute; left: 0px; top: 0px; width: 100%;z-index:10" ; text-align:
-        center>
-        <video id='videoplayer' style="width:100%" autoplay onended="setTimeout('cleanup()',500);"></video>
-    </div>
-    <div id="imagebox2"
-        style="position:absolute; height: 66%; width: 37.5%;  text-align: center; z-index: 1; left:50%; top:50%; transform: translate(-50%, -50%);">
-    </div>
-</body>
-
-</html>
+    };
+    xhr.send(JSON.stringify(query));
+}
