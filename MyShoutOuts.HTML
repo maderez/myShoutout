@@ -77,11 +77,13 @@ var xhr = new XMLHttpRequest();
  const videoElement = document.getElementById('videoplayer');
  videoElement.style.visibility="hidden";
  videoElement.src = videoSrc;
- videoElement.load();
+ videoElement.load(); 
  //videoElement.play();
  //videoElement.pause();
-//Give the clip a second to preload before showing it.
-setTimeout('showVideo();',1000);    
+ setTimeout('videoElement.play();',50);
+ setTimeout('videoElement.pause()',50);
+ //Give the clip a second to preload before showing it.
+setTimeout('showVideo();',2000);    
 }
 function cleanup()
 {
@@ -96,7 +98,7 @@ document.getElementById('imagebox2').innerHTML="";
 
 
 <div id="videocontainer" style="position:absolute; left: 0px; top: 0px; width: 100%;z-index:10"; text-align: center >
-<video id='videoplayer' style="width:100%" autoplay onended="setTimeout('cleanup()',500);"></video>
+<video id='videoplayer' style="width:100%" autoplay onended="setTimeout('cleanup()',1000);"></video>
 </div>
 <div id="imagebox2" style="position:absolute; height: 66%; width: 37.5%;  text-align: center; z-index: 1; left:50%; top:50%; transform: translate(-50%, -50%);">
 </div>
