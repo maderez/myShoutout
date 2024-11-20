@@ -1,109 +1,52 @@
 <html>
+
 <head>
-<title>Streamer.bot Shout out player</title>
-
-<script>
-// Variable to adjust the mute duration (in milliseconds)
-const muteDuration = 2000;
-
-//Thanks for the help from Nate1280, WhipStickGoStop, and itsBarrex!
-//Updated to handle Twitch changing the clip location for newer videos.
-//Fixes also in place to improve stability.
-
-function showVideo() {
-    const videoElement = document.getElementById('videoplayer');
-    videoElement.style.visibility = "visible";
-    
-    // Mute the video initially
-    videoElement.muted = true;
-    videoElement.play();
-    
-    // Unmute after the specified mute duration
-    setTimeout(function() {
-        videoElement.muted = false;
-    }, muteDuration);
-}
-
-function shoutout() {
-    let firstrun = true;
-
-    // Parse URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    const user = urlParams.get('user');
-    const image = urlParams.get('image');
-    const video = urlParams.get('video');
-    const time = urlParams.get('time');
-    document.getElementById('imagebox2').innerHTML = "<img src='" + image + "' width='100%'/>";
-    const thumbnailUrl = urlParams.get('thumbnail_url');
-    let videoSrc = thumbnailUrl.replace(/(.*)-preview-.*/, '$1.mp4');
-    // Generate mp4 URL
-    // Check to see if the URL is a new or old format
-
-    if (thumbnailUrl.indexOf("-preview-") == -1) {
-        // Need to get URL via GQL - how I wish Twitch just let us access this via URL. Ideally, I'd do this via Streamer.bot but want to keep the implementation as simple as possible.
-        // Build GQL request
-        // Generate clip ID from embed URL passed in
-        const match = video.match(/clip=([^"]+)/);
-        const clipId = match ? match[1] : null;
-
-        const url = "https://gql.twitch.tv/gql";
-        const query = {
-            operationName: "VideoAccessToken_Clip",
-            variables: {
-                slug: clipId
-            },
-            extensions: {
-                persistedQuery: {
-                    version: 1,
-                    sha256Hash: "36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11"
-                }
-            }
-        };
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", url, false); // Synchronous request
-        xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
-        xhr.setRequestHeader("Client-ID", "kimne78kx3ncx6brgo4mv6wki5h1ko");
-        xhr.send(JSON.stringify(query));
-        if (xhr.status === 200) {
-            console.log(JSON.parse(xhr.responseText));
-        } else {
-            console.error("Request failed with status: " + xhr.status);
-            return null;
+    <title>Streamer.bot Shout Out Player</title>
+    <script>
+        function showVideo() {
+            const videoElement = document.getElementById('videoplayer');
+            videoElement.style.visibility = "visible";
         }
-        const clipInfo = JSON.parse(xhr.responseText);
-        const clipData = clipInfo.data;
-        const clipSource = clipData.clip.videoQualities[0].sourceURL;
-        const clipSig = clipData.clip.playbackAccessToken.signature;
-        const clipToken = clipData.clip.playbackAccessToken.value;
 
-        videoSrc = clipSource + "?sig=" + clipSig + "&token=" + clipToken;
-        console.log(videoSrc);
-    }
-    // New format generation
-    // Apply mp4 to video element so it's ready to play
-    const videoElement = document.getElementById('videoplayer');
-    videoElement.style.visibility = "hidden";
-    videoElement.src = videoSrc;
-    videoElement.load();
-    videoElement.play();
-    videoElement.pause();
-    // Give the clip a second to preload before showing it.
-    setTimeout('showVideo();', 1000);
-}
+        function shoutout() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const user = urlParams.get('user');
+            const image = urlParams.get('image');
+            const video = urlParams.get('video'); // Should contain the embed URL with Twitch's clip ID
+            const time = urlParams.get('time');
 
-function cleanup() {
-    document.getElementById('videocontainer').innerHTML = "";
-    document.getElementById('imagebox2').innerHTML = "";
-}
-</script>
+            // Set the user image
+            document.getElementById('imagebox2').innerHTML = `<img src="${image}" width="100%"/>`;
 
+            // Set the embed URL with autoplay
+            const embedUrl = `${video}&autoplay=true`;
+            console.log("Embed URL:", embedUrl);
+
+            // Update the video iframe for Twitch clip embedding
+            const videoElement = document.getElementById('videoplayer');
+            videoElement.style.visibility = "hidden"; // Initially hidden
+            videoElement.src = embedUrl;
+
+            // Ensure visibility and autoplay after a small delay
+            setTimeout(() => {
+                showVideo();
+            }, 1000); // Delay for video loading
+        }
+
+        function cleanup() {
+            document.getElementById('videoplayer').src = ""; // Clear video src
+            document.getElementById('imagebox2').innerHTML = ""; // Clear user image
+        }
+    </script>
 </head>
-<body onload="shoutout();">
 
-<div id="videocontainer" style="position:absolute; left: 0px; top: 0px; width: 100%; z-index:10; text-align: center;">
-    <video id='videoplayer' style="width:100%" autoplay onended="setTimeout('cleanup()',500);"></video>
-</div>
-<div id="imagebox2" style="position:absolute; height: 66%; width: 37.5%; text-align: center; z-index: 1; left:50%; top:50%; transform: translate(-50%, -50%);">
-</div>
+<body onload="shoutout();">
+    <div id="videocontainer" style="position:absolute; left: 0px; top: 0px; width: 100%; z-index: 10; text-align: center;">
+        <iframe id='videoplayer' style="width: 100%; height: 100%;" frameborder="0" allow="autoplay"></iframe>
+    </div>
+    <div id="imagebox2"
+        style="position:absolute; height: 66%; width: 37.5%; text-align: center; z-index: 1; left: 50%; top: 50%; transform: translate(-50%, -50%);">
+    </div>
 </body>
+
 </html>
