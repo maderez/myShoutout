@@ -1,20 +1,33 @@
 <html>
 <head>
 <title>Streamer.bot Shout out player</title>
- 
+
 <script>
-//Thanks for the help from Nate1280,  WhipStickGoStop and itsBarrex!
-//Updated to handle twitch changing the clip location for newer videos.
+// Variable to adjust the mute duration (in milliseconds)
+const muteDuration = 731;
+
+//Thanks for the help from Nate1280, WhipStickGoStop, and itsBarrex!
+//Updated to handle Twitch changing the clip location for newer videos.
 //Fixes also in place to improve stability.
 
 function showVideo() {
     const videoElement = document.getElementById('videoplayer');
     videoElement.style.visibility = "visible";
+    
+    // Mute the video initially
+    videoElement.muted = true;
     videoElement.play();
+    
+    // Unmute after the specified mute duration
+    setTimeout(function() {
+        videoElement.muted = false;
+    }, muteDuration);
 }
 
 function shoutout() {
-    // parse url params
+    let firstrun = true;
+
+    // Parse URL params
     const urlParams = new URLSearchParams(window.location.search);
     const user = urlParams.get('user');
     const image = urlParams.get('image');
@@ -23,12 +36,16 @@ function shoutout() {
     document.getElementById('imagebox2').innerHTML = "<img src='" + image + "' width='100%'/>";
     const thumbnailUrl = urlParams.get('thumbnail_url');
     let videoSrc = thumbnailUrl.replace(/(.*)-preview-.*/, '$1.mp4');
-    
-    // Check if the URL is a new or old format
+    // Generate mp4 URL
+    // Check to see if the URL is a new or old format
+
     if (thumbnailUrl.indexOf("-preview-") == -1) {
-        // Need to get url via gql
+        // Need to get URL via GQL - how I wish Twitch just let us access this via URL. Ideally, I'd do this via Streamer.bot but want to keep the implementation as simple as possible.
+        // Build GQL request
+        // Generate clip ID from embed URL passed in
         const match = video.match(/clip=([^"]+)/);
         const clipId = match ? match[1] : null;
+
         const url = "https://gql.twitch.tv/gql";
         const query = {
             operationName: "VideoAccessToken_Clip",
@@ -43,7 +60,7 @@ function shoutout() {
             }
         };
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", url, false);
+        xhr.open("POST", url, false); // Synchronous request
         xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
         xhr.setRequestHeader("Client-ID", "kimne78kx3ncx6brgo4mv6wki5h1ko");
         xhr.send(JSON.stringify(query));
@@ -52,33 +69,26 @@ function shoutout() {
         } else {
             console.error("Request failed with status: " + xhr.status);
             return null;
-        }   
+        }
         const clipInfo = JSON.parse(xhr.responseText);
         const clipData = clipInfo.data;
         const clipSource = clipData.clip.videoQualities[0].sourceURL;
         const clipSig = clipData.clip.playbackAccessToken.signature;
         const clipToken = clipData.clip.playbackAccessToken.value;
+
         videoSrc = clipSource + "?sig=" + clipSig + "&token=" + clipToken;
         console.log(videoSrc);
     }
-
+    // New format generation
     // Apply mp4 to video element so it's ready to play
     const videoElement = document.getElementById('videoplayer');
     videoElement.style.visibility = "hidden";
     videoElement.src = videoSrc;
     videoElement.load();
-
-    // Wait 5 seconds to allow the video to load
-    setTimeout(function() {
-        // Start buffering
-        videoElement.play();
-        videoElement.pause();
-
-        // Wait another 5 seconds to allow buffering
-        setTimeout(function() {
-            showVideo();
-        }, 5000);
-    }, 5000);
+    videoElement.play();
+    videoElement.pause();
+    // Give the clip a second to preload before showing it.
+    setTimeout('showVideo();', 1000);
 }
 
 function cleanup() {
