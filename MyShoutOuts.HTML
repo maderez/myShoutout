@@ -4,16 +4,13 @@
         const user = urlParams.get('user');
         const image = urlParams.get('image');
         const video = urlParams.get('video');
-        const time = urlParams.get('time');
         const thumbnailUrl = urlParams.get('thumbnail_url');
 
         // Display image
         document.getElementById('imagebox2').innerHTML = `<img src="${image}" width="100%">`;
 
-        // Generate video source
+        // Generate video source URL
         let videoSrc = thumbnailUrl.replace(/(.*)-preview-.*/, '$1.mp4');
-
-        // OBS-specific adjustments for Twitch GraphQL fetch
         if (!thumbnailUrl.includes("-preview-")) {
             const clipIdMatch = video.match(/clip=([^"]+)/);
             const clipId = clipIdMatch ? clipIdMatch[1] : null;
@@ -52,17 +49,19 @@
         }
 
         const videoElement = document.getElementById('videoplayer');
+        videoElement.style.visibility = "hidden"; // Hide until ready
         videoElement.src = videoSrc;
-        videoElement.style.visibility = "hidden";
 
-        // OBS-Specific Preload and Play Handling
-        videoElement.addEventListener('canplay', function onCanPlay() {
-            videoElement.removeEventListener('canplay', onCanPlay);
-            videoElement.style.visibility = "visible";
-            videoElement.play();
-        });
+        // Add a 10-second delay before attempting to load and play the video
+        setTimeout(() => {
+            videoElement.load();
 
-        videoElement.load();
+            // Add another 10-second delay to ensure the video has time to buffer
+            setTimeout(() => {
+                videoElement.style.visibility = "visible";
+                videoElement.play();
+            }, 10000); // 10 seconds for buffering
+        }, 10000); // 10 seconds for loading
     }
 
     function cleanup() {
