@@ -6,6 +6,7 @@
         function showVideo() {
             const videoElement = document.getElementById('videoplayer');
             videoElement.style.visibility = "visible";
+            videoElement.muted = false; // Unmute the video
             videoElement.play();
         }
 
@@ -24,11 +25,12 @@
             getVideoSourceFromAPI(clipId, function(videoSrc) {
                 const videoElement = document.getElementById('videoplayer');
                 videoElement.style.visibility = "hidden";
+                videoElement.muted = true; // Mute the video initially
                 videoElement.src = videoSrc;
 
                 // Wait for the video to be ready before playing
-                videoElement.addEventListener('canplaythrough', function handler() {
-                    videoElement.removeEventListener('canplaythrough', handler);
+                videoElement.addEventListener('canplay', function handler() {
+                    videoElement.removeEventListener('canplay', handler);
                     showVideo();
                 });
 
@@ -96,7 +98,7 @@
 </head>
 <body onload="shoutout();">
     <div id="videocontainer" style="position:absolute; left:0px; top:0px; width:100%; z-index:10; text-align:center;">
-        <video id="videoplayer" style="width:100%;" autoplay onended="setTimeout('cleanup()', 500);"></video>
+        <video id="videoplayer" style="width:100%;" preload="auto" onended="setTimeout('cleanup()', 500);"></video>
     </div>
     <div id="imagebox2" style="position:absolute; height:66%; width:37.5%; text-align:center; z-index:1; left:50%; top:50%; transform:translate(-50%, -50%);">
     </div>
