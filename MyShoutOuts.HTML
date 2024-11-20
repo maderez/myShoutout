@@ -1,101 +1,72 @@
-<html>
+<script>
+    function shoutout() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const user = urlParams.get('user');
+        const image = urlParams.get('image');
+        const video = urlParams.get('video');
+        const time = urlParams.get('time');
+        const thumbnailUrl = urlParams.get('thumbnail_url');
 
-<head>
-    <title>Streamer.bot Shout out player</title>
+        // Display image
+        document.getElementById('imagebox2').innerHTML = `<img src="${image}" width="100%">`;
 
-    <script>
-        //Thanks for the help from Nate1280,  WhipStickGoStop and itsBarrex!
-        //Updated to handle twitch changing the clip location for newer videos.
-        //Fixes also in place to improve stability.
+        // Generate video source
+        let videoSrc = thumbnailUrl.replace(/(.*)-preview-.*/, '$1.mp4');
 
-        function showVideo() {
-            videoElement = document.getElementById('videoplayer')
-            videoElement.style.visibility = "visible";
-            videoElement.play();
+        // OBS-specific adjustments for Twitch GraphQL fetch
+        if (!thumbnailUrl.includes("-preview-")) {
+            const clipIdMatch = video.match(/clip=([^"]+)/);
+            const clipId = clipIdMatch ? clipIdMatch[1] : null;
 
-        }
-        function shoutout() {
-            // Parse URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const user = urlParams.get('user');
-            const image = urlParams.get('image');
-            const video = urlParams.get('video');
-            const time = urlParams.get('time');
-            const thumbnailUrl = urlParams.get('thumbnail_url');
-
-            // Display the user's image
-            document.getElementById('imagebox2').innerHTML = `<img src="${image}" width="100%"/>`;
-
-            // Determine the video source URL
-            let videoSrc = thumbnailUrl.replace(/(.*)-preview-.*/, '$1.mp4');
-            if (!thumbnailUrl.includes("-preview-")) {
-                // Fetch the video source URL via Twitch's GraphQL API
-                const clipIdMatch = video.match(/clip=([^"]+)/);
-                const clipId = clipIdMatch ? clipIdMatch[1] : null;
-                if (clipId) {
-                    const gqlUrl = "https://gql.twitch.tv/gql";
-                    const query = {
-                        operationName: "VideoAccessToken_Clip",
-                        variables: { slug: clipId },
-                        extensions: {
-                            persistedQuery: {
-                                version: 1,
-                                sha256Hash: "36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11"
-                            }
+            if (clipId) {
+                const gqlUrl = "https://gql.twitch.tv/gql";
+                const query = {
+                    operationName: "VideoAccessToken_Clip",
+                    variables: { slug: clipId },
+                    extensions: {
+                        persistedQuery: {
+                            version: 1,
+                            sha256Hash: "36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11"
                         }
-                    };
-                    const xhr = new XMLHttpRequest();
-                    xhr.open("POST", gqlUrl, false);
-                    xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
-                    xhr.setRequestHeader("Client-ID", "kimne78kx3ncx6brgo4mv6wki5h1ko");
-                    xhr.send(JSON.stringify(query));
-                    if (xhr.status === 200) {
-                        const response = JSON.parse(xhr.responseText);
-                        const clipData = response.data.clip;
-                        const clipSource = clipData.videoQualities[0].sourceURL;
-                        const clipSig = clipData.playbackAccessToken.signature;
-                        const clipToken = clipData.playbackAccessToken.value;
-                        videoSrc = `${clipSource}?sig=${clipSig}&token=${clipToken}`;
-                    } else {
-                        console.error(`Request failed with status: ${xhr.status}`);
-                        return;
                     }
+                };
+
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", gqlUrl, false);
+                xhr.setRequestHeader("Content-Type", "application/json");
+                xhr.setRequestHeader("Client-ID", "kimne78kx3ncx6brgo4mv6wki5h1ko");
+                xhr.send(JSON.stringify(query));
+
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    const clipData = response.data.clip;
+                    const clipSource = clipData.videoQualities[0].sourceURL;
+                    const clipSig = clipData.playbackAccessToken.signature;
+                    const clipToken = clipData.playbackAccessToken.value;
+                    videoSrc = `${clipSource}?sig=${clipSig}&token=${clipToken}`;
+                } else {
+                    console.error("Error fetching video source");
+                    return;
                 }
             }
-
-            // Configure the video element
-            const videoElement = document.getElementById('videoplayer');
-            videoElement.style.visibility = "hidden";
-            videoElement.src = videoSrc;
-            videoElement.load();
-
-            // Add an event listener for the 'canplay' event
-            videoElement.addEventListener('canplay', function onCanPlay() {
-                videoElement.removeEventListener('canplay', onCanPlay);
-                videoElement.style.visibility = "visible";
-                videoElement.play();
-            });
         }
 
-        function cleanup() {
-            document.getElementById('videocontainer').innerHTML = "";
-            document.getElementById('imagebox2').innerHTML = "";
-        }
-    </script>
+        const videoElement = document.getElementById('videoplayer');
+        videoElement.src = videoSrc;
+        videoElement.style.visibility = "hidden";
 
+        // OBS-Specific Preload and Play Handling
+        videoElement.addEventListener('canplay', function onCanPlay() {
+            videoElement.removeEventListener('canplay', onCanPlay);
+            videoElement.style.visibility = "visible";
+            videoElement.play();
+        });
 
-</head>
+        videoElement.load();
+    }
 
-<body onload="shoutout();">
-
-
-    <div id="videocontainer" style="position:absolute; left: 0px; top: 0px; width: 100%;z-index:10" ; text-align:
-        center>
-        <video id='videoplayer' style="width:100%" autoplay onended="setTimeout('cleanup()',500);"></video>
-    </div>
-    <div id="imagebox2"
-        style="position:absolute; height: 66%; width: 37.5%;  text-align: center; z-index: 1; left:50%; top:50%; transform: translate(-50%, -50%);">
-    </div>
-</body>
-
-</html>
+    function cleanup() {
+        document.getElementById('videocontainer').innerHTML = "";
+        document.getElementById('imagebox2').innerHTML = "";
+    }
+</script>
