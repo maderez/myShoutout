@@ -1,105 +1,90 @@
 <html>
 
-<head>
-    <title>Streamer.bot Shout out player</title>
+<body onload="start()">
+	<style>
+		#vid {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+		}
 
-    <script>
-        //Thanks for the help from Nate1280,  WhipStickGoStop and itsBarrex!
-        //Updated to handle twitch changing the clip location for newer videos.
-        //Fixes also in place to improve stability.
+		#img {
+			position: absolute;
+			top: 15%;
+			left: 30%;
+			width: 40%;
+		}
+	</style>
 
-        function showVideo() {
-            videoElement = document.getElementById('videoplayer')
-            videoElement.style.visibility = "visible";
-            videoElement.play();
-
-        }
-        function shoutout() {
-            let firstrun = true;
-
-            // parse url params
-            const urlParams = new URLSearchParams(window.location.search);
-            const user = urlParams.get('user');
-            const image = urlParams.get('image');
-            const video = urlParams.get('video');
-            const time = urlParams.get('time');
-            document.getElementById('imagebox2').innerHTML = "<img src='" + image + "' width='100%'/>";
-            const thumbnailUrl = urlParams.get('thumbnail_url');
-            videoSrc = thumbnailUrl.replace(/(.*)-preview-.*/, '$1.mp4');
-            // generate mp4 url
-            //Check to see if the URL is a new or old format
-
-            if (thumbnailUrl.indexOf("-preview-") == -1) {
-                // Need to get url via gql - how I wish Twitch just let us to get access to this via URL. Ideally I'd do this via streamer bot but want to keep the implementation as simple as possible.      
-                // build gql request
-                // generate clip Id from embed url passed in
-                const match = video.match(/clip=([^"]+)/);
-                const clipId = match ? match[1] : null;
-                // const clipId = video.match(/clip=([^"]+)/);
-
-                const url = "https://gql.twitch.tv/gql";
-                const query = {
-                    operationName: "VideoAccessToken_Clip",
-                    variables: {
-                        slug: clipId
-                    },
-                    extensions: {
-                        persistedQuery: {
-                            version: 1,
-                            sha256Hash: "36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11"
-                        }
-                    }
-                };
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", url, false); // I know this is horrible to make the request synchronous, but here we should be ok
-                xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8"); // not what you'd expect, but it's what is used.
-                xhr.setRequestHeader("Client-ID", "kimne78kx3ncx6brgo4mv6wki5h1ko");
-                xhr.send(JSON.stringify(query));
-                if (xhr.status === 200) {
-                    console.log(JSON.parse(xhr.responseText));
-                } else {
-                    console.error("Request failed with status: " + xhr.status);
-                    return null;
-                }
-                const clipInfo = JSON.parse(xhr.responseText);
-                const clipData = clipInfo.data;
-                const clipSource = clipData.clip.videoQualities[0].sourceURL;
-                const clipSig = clipData.clip.playbackAccessToken.signature;
-                const clipToken = clipData.clip.playbackAccessToken.value
-
-                videoSrc = clipSource + "?sig=" + clipSig + "&token=" + clipToken;
-                console.log(videoSrc);
-            }
-            //new format generation
-            // apply mp4 to video element so it's ready to play
-            const videoElement = document.getElementById('videoplayer');
-            videoElement.style.visibility = "hidden";
-            videoElement.src = videoSrc;
-            //videoElement.load();
-            //videoElement.play();
-            //videoElement.pause();
-            //Give the clip a second to preload before showing it.
-            setTimeout('showVideo();', 1000);
-        }
-        function cleanup() {
-            document.getElementById('videocontainer').innerHTML = "";
-            document.getElementById('imagebox2').innerHTML = "";
-        }
-    </script>
+	<script>
 
 
-</head>
 
-<body onload="shoutout();">
+		async function getData() {
+			url = "https://gql.twitch.tv/gql";
+			query =
+			{
+				operationName: "VideoAccessToken_Clip",
+				variables: {
+					slug: clipId,
+					platform: "web"
+				},
+				extensions: {
+					persistedQuery: {
+						version: 1,
+						sha256Hash: "6fd3af2b22989506269b9ac02dd87eb4a6688392d67d94e41a6886f1e9f5c00f"
+					}
+				}
+			}
+
+			config = {
+				method: "POST",
+				headers: {
+					"Content-Type": "text/plain;charset=UTF-8",
+					"Client-ID": "kimne78kx3ncx6brgo4mv6wki5h1ko"
+				},
+				body: JSON.stringify(query)
+			}
+			response = await fetch(url, config)
+			data = await response.json()
+			return data
+		}
+
+		async function start() {
+
+			params = new URLSearchParams(window.location.search)
+			user = params.get("user")
+			image = params.get("image")
+			video = params.get("video")
+			thumbnail_url = params.get("thumbnail_url")
+			time = params.get("time")
+			document.getElementById("img").src = image
+
+			clipId = video.split("clip=")[1]
+
+			data = await getData()
 
 
-    <div id="videocontainer" style="position:absolute; left: 0px; top: 0px; width: 100%;z-index:10" ; text-align:
-        center>
-        <video id='videoplayer' style="width:100%" autoplay onended="setTimeout('cleanup()',500);"></video>
-    </div>
-    <div id="imagebox2"
-        style="position:absolute; height: 66%; width: 37.5%;  text-align: center; z-index: 1; left:50%; top:50%; transform: translate(-50%, -50%);">
-    </div>
+			clipSource = data.data.clip.videoQualities[0].sourceURL;
+			clipSig = data.data.clip.playbackAccessToken.signature;
+			clipToken = data.data.clip.playbackAccessToken.value
+
+			v = document.getElementById("vid")
+			v.src = clipSource + "?sig=" + clipSig + "&token=" + clipToken;
+			v.play()
+			document.getElementById("img").hidden = true
+		}
+
+		function end() {
+			//if (closeWindowOnEnd) {
+			//	window.close()
+			//}
+			document.getElementById("vid").hidden = true
+		}
+	</script>
+	<img id="img">
+	<video id="vid" width="100%" onended="end()"></video>
 </body>
 
 </html>
